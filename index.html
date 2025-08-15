@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Звуковая панель</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        .sound-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .sound-btn {
+            padding: 15px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .sound-btn:hover {
+            background-color: #45a049;
+        }
+        .stop-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            background-color: #f44336;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+        .stop-btn:hover {
+            background-color: #d32f2f;
+        }
+        .pan-control {
+            width: 100%;
+            margin-bottom: 20px;
+        }
+        .pan-label {
+            display: block;
+            text-align: center;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Звуковая панель</h1>
+    
+    <button class="stop-btn" id="stopAll">Остановить все звуки</button>
+    
+    <div class="pan-control">
+        <span class="pan-label">Панорамирование (влево/вправо)</span>
+        <input type="range" id="panControl" min="-1" max="1" step="0.1" value="0">
+    </div>
+    
+    <div class="sound-board">
+        <button class="sound-btn" data-sound="sound1.mp3">Звук 1</button>
+        <button class="sound-btn" data-sound="sound2.mp3">Звук 2</button>
+        <button class="sound-btn" data-sound="sound3.mp3">Звук 3</button>
+        <button class="sound-btn" data-sound="sound4.mp3">Звук 4</button>
+        <button class="sound-btn" data-sound="sound5.mp3">Звук 5</button>
+        <button class="sound-btn" data-sound="sound6.mp3">Звук 6</button>
+        <button class="sound-btn" data-sound="sound7.mp3">Звук 7</button>
+        <button class="sound-btn" data-sound="sound8.mp3">Звук 8</button>
+        <button class="sound-btn" data-sound="sound9.mp3">Звук 9</button>
+        <button class="sound-btn" data-sound="sound10.mp3">Звук 10</button>
+        <button class="sound-btn" data-sound="sound11.mp3">Звук 11</button>
+        <button class="sound-btn" data-sound="sound12.mp3">Звук 12</button>
+        <button class="sound-btn" data-sound="sound13.mp3">Звук 13</button>
+        <button class="sound-btn" data-sound="sound14.mp3">Звук 14</button>
+        <button class="sound-btn" data-sound="sound15.mp3">Звук 15</button>
+        <button class="sound-btn" data-sound="sound16.mp3">Звук 16</button>
+    </div>
+
+    <script>
+        // Создаем аудиоконтекст
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        let panValue = 0;
+        const activeSounds = new Set();
+        
+        // Элементы управления
+        const panControl = document.getElementById('panControl');
+        const stopAllBtn = document.getElementById('stopAll');
+        
+        // Обработчик изменения панорамирования
+        panControl.addEventListener('input', function() {
+            panValue = parseFloat(this.value);
+        });
+        
+        // Обработчик остановки всех звуков
+        stopAllBtn.addEventListener('click', function() {
+            activeSounds.forEach(sound => {
+                sound.stop();
+            });
+            activeSounds.clear();
+        });
+        
+        // Обработчики для кнопок звуков
+        document.querySelectorAll('.sound-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                const soundFile = this.getAttribute('data-sound');
+                playSound(soundFile);
+            });
+        });
+        
+        // Функция воспроизведения звука с панорамированием
+        function playSound(soundFile) {
+            fetch(soundFile)
+                .then(response => response.arrayBuffer())
+                .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
+                .then(audioBuffer => {
+                    const source = audioContext.createBufferSource();
+                    const panner = audioContext.createStereoPanner();
+                    
+                    source.buffer = audioBuffer;
+                    panner.pan.value = panValue;
+                    
+                    source.connect(panner);
+                    panner.connect(audioContext.destination);
+                    
+                    source.start();
+                    activeSounds.add(source);
+                    
+                    source.onended = () => {
+                        activeSounds.delete(source);
+                    };
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки звука:', error);
+                    // Заглушка для демонстрации, если файлы не найдены
+                    playFallbackSound();
+                });
+        }
+        
+        // Заглушка для демонстрации, если звуковые файлы не найдены
+        function playFallbackSound() {
+            const oscillator = audioContext.createOscillator();
+            const panner = audioContext.createStereoPanner();
+            
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 200 + Math.random() * 1000;
+            panner.pan.value = panValue;
+            
+            oscillator.connect(panner);
+            panner.connect(audioContext.destination);
+            
+            oscillator.start();
+            activeSounds.add(oscillator);
+            
+            oscillator.stop(audioContext.currentTime + 0.5);
+            oscillator.onended = () => {
+                activeSounds.delete(oscillator);
+            };
+        }
+    </script>
+</body>
+</html>
